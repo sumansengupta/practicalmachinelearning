@@ -1,0 +1,115 @@
+---
+  title: "Machine Learning - Project to quantify how well personal activities are done"
+  output: md_document
+---
+  
+*Synopsis: This documet analyses the training dataset and predicts the category of the quality of exercise in the test dataset.
+People commonly measure the amount of activiteies they perform, but seldom measure how well they do it. 
+The aim of the current project is to analys the data from rom accelerometers on the belt, forearm, arm, and dumbell of 6 participants
+and predict the category of the test data*
+
+##Data Preprocessing 
+
+```{r}
+##The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har
+
+#Create sub directory in current working directory if it doesn't exist
+if(!file.exists("./data")){dir.create("./data")}
+trainingFileUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testFileUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+# Download File if not dowloaded already
+if(!file.exists("./data/devise.csv")){ download.file(trainingFileUrl,destfile="./data/devise.csv") }
+if(!file.exists("./data/test.csv")){ download.file(testFileUrl,destfile="./data/test.csv") }
+
+# Unzip and store the data files
+#unzip(zipfile="./data/storm.csv.bz2",exdir="./data")
+path_rf <- file.path("./data")
+```
+Read the downloaded file
+```{r, cache=TRUE}
+
+# Read Files (into Data Frame)test and training
+deviseData  <- read.csv(file.path(path_rf, "devise.csv" ))
+dim(deviseData)
+
+
+testData  <- read.csv(file.path(path_rf, "test.csv" ))
+dim(testData)
+
+```
+
+Include libraries
+
+```{r}
+library(ggplot2); library(gdata) ; library(caret) ; library(randomForest)
+
+set.seed(12345)
+#From the training data create test and training data
+
+inTrain <- createDataPartition(y=deviseData$classe,p=0.75, list=FALSE)
+
+deviseTrain <- deviseData [inTrain,]
+deviseTest <- deviseData [-inTrain,]
+
+summary(deviseTrain)
+
+
+
+# Plot graph to visually look at some key variables 
+qplot(pitch_forearm , data=deviseTrain, geom="density", colour=classe, 
+   main="Distribution Pitch Forearm", xlab="Pitch Forearm", 
+   ylab="Density")
+
+# Plot graph to visually look at some key variables 
+qplot(pitch_arm , data=deviseTrain, geom="density", colour=classe, 
+   main="Distribution Pitch Arm", xlab="Pitch Arm", 
+   ylab="Density")
+
+# Plot graph to visually look at some key variables 
+qplot(pitch_belt , data=deviseTrain, geom="density", colour=classe, 
+   main="Distribution Pitch Belt", xlab="Pitch Belt", 
+   ylab="Density")
+
+```
+
+#Results:
+
+Fit the model in test Data and calculate the training data
+
+```{r}
+#From the summary of the training data it is ovserved that first sevel columns are accessory data and not related to the activity output
+#Also many of the data elements have a large number (14,408) of invalid data. all these are removed from the 
+#Select the names of feature variables.
+
+predCol <- matchcols(deviseTrain[,-(1:7)], without=c
+                      ("skewness","kurtosis","max","min", "amplitude", "var_","stddev_","avg_", 
+                      "classe"), method="or")
+
+#Create the dataframe with 
+predVars <- deviseTrain[,predCol]
+
+#create the model with Random Forest 
+modFit <- randomForest(x= predVars,y= deviseTrain$classe)
+
+modFit
+
+# Apply the model on the test data separated out of training data
+test <- deviseTest[,predCol]
+pred <- predict(modFit,test)
+
+table(pred,deviseTest$classe)
+
+```
+
+**Conclusion: **
+  
+  *Random Forest has been used because of inherent accuracy of the model*
+  
+```{r}  
+# Fitting the model on the supplied test Data  
+testFinal <- testData[,predCol]
+pred <- predict(modFit,testFinal)
+pred
+```
+  
